@@ -172,13 +172,13 @@ class DiziBox : MainAPI() {
         }
     }
 
-    private suspend fun iframeDecode(data:String, iframe:String, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        @Suppress("NAME_SHADOWING") var iframe = iframe
+    private suspend fun iframeDecode(data: String, iframe: String, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
+        var currentIframe = iframe
 
-        if (iframe.contains("/player/king/king.php")) {
-            iframe = iframe.replace("king.php?v=", "king.php?wmode=opaque&v=")
+        if (currentIframe.contains("/player/king/king.php")) {
+            currentIframe = currentIframe.replace("king.php?v=", "king.php?wmode=opaque&v=")
             val subDoc = app.get(
-                iframe,
+                currentIframe,
                 referer     = data,
                 cookies     = mapOf(
                     "LockUser"      to "true",
@@ -194,7 +194,7 @@ class DiziBox : MainAPI() {
             val cryptPass     = Regex("""","(.*)"\);""").find(iDoc)?.groupValues?.get(1) ?: return false
             val decryptedData = CryptoJS.decrypt(cryptPass, cryptData)
             val decryptedDoc  = Jsoup.parse(decryptedData)
-            val vidUrl        = Regex("""file: '(.*)',""").find(decryptedDoc.html())?.groupValues?.get(1) ?: return false
+            val vidUrl        = Regex("""file: '(.*)'""").find(decryptedDoc.html())?.groupValues?.get(1) ?: return false
 
             callback.invoke(
                 ExtractorLink(
@@ -207,10 +207,10 @@ class DiziBox : MainAPI() {
                 )
             )
 
-        } else if (iframe.contains("/player/moly/moly.php")) {
-            iframe = iframe.replace("moly.php?h=", "moly.php?wmode=opaque&h=")
+        } else if (currentIframe.contains("/player/moly/moly.php")) {
+            currentIframe = currentIframe.replace("moly.php?h=", "moly.php?wmode=opaque&h=")
             var subDoc = app.get(
-                iframe,
+                currentIframe,
                 referer     = data,
                 cookies     = mapOf(
                     "LockUser"      to "true",
@@ -231,10 +231,10 @@ class DiziBox : MainAPI() {
 
             loadExtractor(subFrame, "${mainUrl}/", subtitleCallback, callback)
 
-        } else if (iframe.contains("/player/haydi.php")) {
-            iframe = iframe.replace("haydi.php?v=", "haydi.php?wmode=opaque&v=")
+        } else if (currentIframe.contains("/player/haydi.php")) {
+            currentIframe = currentIframe.replace("haydi.php?v=", "haydi.php?wmode=opaque&v=")
             var subDoc = app.get(
-                iframe,
+                currentIframe,
                 referer     = data,
                 cookies     = mapOf(
                     "LockUser"      to "true",
@@ -270,7 +270,7 @@ class DiziBox : MainAPI() {
             ),
             interceptor = interceptor
         ).document
-        var iframe = document.selectFirst("div#video-area iframe")?.attr("src")?: return false
+        val iframe = document.selectFirst("div#video-area iframe")?.attr("src") ?: return false
         Log.d("DZBX", "iframe » $iframe")
 
         iframeDecode(data, iframe, subtitleCallback, callback)
@@ -286,10 +286,10 @@ class DiziBox : MainAPI() {
                 ),
                 interceptor = interceptor
             ).document
-            iframe = subDoc.selectFirst("div#video-area iframe")?.attr("src")?: return false
-            Log.d("DZBX", "iframe » $iframe")
+            val altIframe = subDoc.selectFirst("div#video-area iframe")?.attr("src") ?: return@forEach
+            Log.d("DZBX", "iframe » $altIframe")
 
-            iframeDecode(data, iframe, subtitleCallback, callback)
+            iframeDecode(data, altIframe, subtitleCallback, callback)
         }
 
         return true
