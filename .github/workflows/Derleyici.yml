@@ -42,7 +42,9 @@ jobs:
           java-version: 17
 
       - name: Android SDK Ayarla
-        uses: android-actions/setup-android@v3.2.2
+        uses: android-actions/setup-android@v3.3.0
+        with:
+          packages: 'platforms;android-34'
 
       - name: Eklentileri Derle
         run: |
@@ -60,3 +62,4 @@ jobs:
       #     git add .
       #     git commit --amend -m "$GITHUB_SHA 'nın Derlenmesi" || exit 0   # eğer commit edilecek bir şey yoksa hata verme
       #     git push --force
+      
