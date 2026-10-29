@@ -53,16 +53,17 @@ class FullHDFilmizlesene : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("${request.data}${page}").document
+        val pageUrl = if (page == 1) request.data else "${request.data}${page}/"
+        val document = app.get(pageUrl).document
         val home     = document.select("li.film").mapNotNull { it.toSearchResult() }
 
-        return newHomePageResponse(request.name, home)
+        return newHomePageResponse(request.name, home, hasNext = true)
     }
 
     private fun Element.toSearchResult(): SearchResponse? {
         val title     = this.selectFirst("span.film-title")?.text() ?: return null
         val href      = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
-        val posterUrl = fixUrlNull(this.selectFirst("img")?.attr("data-src"))
+        val posterUrl = fixUrlNull(this.selectFirst("img")?.attr("data-src") ?: this.selectFirst("img")?.attr("src"))
 
         return newMovieSearchResponse(title, href, TvType.Movie) { this.posterUrl = posterUrl }
     }
@@ -79,7 +80,7 @@ class FullHDFilmizlesene : MainAPI() {
         val document = app.get(url).document
 
         val title           = document.selectFirst("div[class=izle-titles]")?.text()?.trim() ?: return null
-        val poster          = fixUrlNull(document.selectFirst("div img")?.attr("data-src"))
+        val poster          = fixUrlNull(document.selectFirst("div img")?.attr("data-src") ?: document.selectFirst("div img")?.attr("src"))
         val year            = document.selectFirst("div.dd a.category")?.text()?.split(" ")?.get(0)?.trim()?.toIntOrNull()
         val description     = document.selectFirst("div.ozet-ic > p")?.text()?.trim()
         val tags            = document.select("a[rel='category tag']").map { it.text() }
@@ -90,11 +91,10 @@ class FullHDFilmizlesene : MainAPI() {
             Actor(it.text())
         }
 
-
         val recommendations = document.selectXpath("//div[span[text()='Benzer Filmler']]/following-sibling::section/ul/li").mapNotNull {
             val recName      = it.selectFirst("span.film-title")?.text() ?: return@mapNotNull null
             val recHref      = fixUrlNull(it.selectFirst("a")?.attr("href")) ?: return@mapNotNull null
-            val recPosterUrl = fixUrlNull(it.selectFirst("img")?.attr("data-src"))
+            val recPosterUrl = fixUrlNull(it.selectFirst("img")?.attr("data-src") ?: it.selectFirst("img")?.attr("src"))
             newMovieSearchResponse(recName, recHref, TvType.Movie) {
                 this.posterUrl = recPosterUrl
             }
@@ -129,7 +129,7 @@ class FullHDFilmizlesene : MainAPI() {
         return s.map { rot13Char(it) }.joinToString("")
     }
 
-    private fun getVideoLinks(document: Document): List<Map<String, String>> {
+    private fun getVideoLinks(document: Document): List> {
         val scriptElement = document.select("script").firstOrNull { it.data().isNotEmpty() }
         val scriptContent = scriptElement?.data()?.trim() ?: return emptyList()
 
@@ -137,7 +137,7 @@ class FullHDFilmizlesene : MainAPI() {
         val scxMap: SCXData = jacksonObjectMapper().readValue(scxData)
         val keys             = listOf("atom", "advid", "advidprox", "proton", "fast", "fastly", "tr", "en")
 
-        val linkList = mutableListOf<Map<String, String>>()
+        val linkList = mutableListOf>()
 
         for (key in keys) {
             val t = when (key) {
@@ -178,7 +178,6 @@ class FullHDFilmizlesene : MainAPI() {
         val videoLinks = getVideoLinks(document)
         Log.d("FHD", "videoLinks » $videoLinks")
         if (videoLinks.isEmpty()) return false
-
 
         for (videoMap in videoLinks) {
             for ((key, value) in videoMap) {
